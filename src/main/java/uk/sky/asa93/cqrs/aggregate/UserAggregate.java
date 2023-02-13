@@ -31,7 +31,18 @@ public class UserAggregate {
         User user = recreateUserState(writeRepository, command.getUserId());
         List<Event> events = new ArrayList<>();
 
-        removeContacts(command, user, events);
+        List<Contact> contactsToRemove = user.getContacts()
+            .stream()
+            .filter(contact -> !command.getContacts().contains(contact))
+            .toList();
+
+        for (Contact contact : contactsToRemove) {
+            UserContactRemovedEvent userContactRemovedEvent = new UserContactRemovedEvent(contact.getType(),
+                contact.getDetail());
+            events.add(userContactRemovedEvent);
+            writeRepository.addEvent(command.getUserId(), userContactRemovedEvent);
+        }
+
         addContacts(command, user, events);
         removeAddresses(command, user, events);
         addAddresses(command, user, events);
@@ -76,20 +87,6 @@ public class UserAggregate {
                 contact.getDetail());
             events.add(contactAddedEvent);
             writeRepository.addEvent(command.getUserId(), contactAddedEvent);
-        }
-    }
-
-    private void removeContacts(UpdateUserCommand command, User user, List<Event> events) {
-        List<Contact> contactsToRemove = user.getContacts()
-            .stream()
-            .filter(contact -> !command.getContacts().contains(contact))
-            .toList();
-
-        for (Contact contact : contactsToRemove) {
-            UserContactRemovedEvent userContactRemovedEvent = new UserContactRemovedEvent(contact.getType(),
-                contact.getDetail());
-            events.add(userContactRemovedEvent);
-            writeRepository.addEvent(command.getUserId(), userContactRemovedEvent);
         }
     }
 }
